@@ -1,0 +1,220 @@
+---
+title: "Problem Set 2"
+author: "C. Durso"
+output:
+  word_document: default
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+These questions were rendered in R markdown through RStudio (<https://www.rstudio.com/wp-content/uploads/2015/02/rmarkdown-cheatsheet.pdf>, <http://rmarkdown.rstudio.com> ).
+
+Please complete the following tasks regarding the data in R. Please generate a solution document in R markdown and upload the .Rmd document and a rendered  .doc, .docx, or .pdf document. Your solution document should have your answers to the questions and should display the requested plots.
+
+
+```{r}
+knitr::opts_chunk$set(echo = TRUE)
+#install.packages("cowplot")
+library(tidyverse)
+library(knitr)
+
+```
+
+
+### Question 1
+
+Please draw a random sample of 100,000 values from the Poisson distribution with $\lambda=4$ using the random seed 7654321. Present a histogram of the results with a density scale using the techniques in "Discrete_Probability_Distributions_2_3_3.Rmd" or "continuous_probability_distributions_2_4_2.Rmd". You may find a bin width of 1 helpful. Separately, please draw 100 values from the Poisson distribution with $\lambda=4$ using the random seed 7654321 and present a histogram of the results with a density scale.(5 points) 
+
+```{r}
+set.seed(7654321)
+largeSample <- data.frame(Values=rpois(100000, 4))
+
+(histo1 <- ggplot(largeSample,aes(x=Values))+geom_histogram(aes(y=..density..),binwidth=1))
+
+set.seed(7654321)
+smallSample <- data.frame(Values2=rpois(100, 4))
+
+(histo2 <- ggplot(smallSample,aes(x=Values2))+geom_histogram(aes(y=..density..),binwidth=1))
+#+stat_bin(geom="text", aes(label=round(..density..,2)))
+ #+stat_bin(binwidth=1, geom='text', color='white', aes(label=..density..))
+
+```
+
+### Question 2
+
+Please generate a visualization that compares the proportions each of the possible outcomes in the sample of size 100,000 above to the theoretical probabilities of each of the outcomes for the Poisson distribution with $\lambda=4$. Repeat for the sample of size 100. Discuss the appearance of the histograms in relation to the probability density function of the Poisson distribution with $\lambda=4$. (5 points)
+
+  The histogram for the sample where n=100 has some significant differences with the theoretical probabilities of the $\lambda=4$ Poisson distribution.  On the other hand, the heights of the bars for the larger sample are almost indistinguishable from the values of the probability density function.  This is to be expected. The Law of Large Numbers tells us that the sample densities should approach the theoretical probabilities in the long run.
+
+```{r}
+largeSampDens <- ggplot_build(histo1)$data[[1]]$density
+smallSampDens <- ggplot_build(histo2)$data[[1]]$density
+smallSampDens2 <- c(smallSampDens,c(0,0,0,0,0,0))
+
+(theorPoissonVsLarge <-data.frame(values=rep(c(0:15),2),probs=c(dpois(0:15,4),largeSampDens),category=rep(c("Theoretical","Large Sample"),each=16)))
+
+(theoPlot1 <- ggplot(theorPoissonVsLarge,aes(x=values,y=probs,colour=category))+geom_point())
+
+(theorPoissonVsSmall <- data.frame(values=rep(c(0:15),2),Probabilities=c(dpois(0:15,4),smallSampDens2),category=rep(c("Theoretical","Small Sample"),each=16)))
+
+(theoreticalPlot2 <- ggplot(theorPoissonVsSmall, aes(x=values,y=Probabilities,colour=category))+geom_point())
+                              
+
+
+```
+
+
+## Normal Approximations
+
+Many statistical methods involve approximation of a distribution by a Normal distribution. Questions 3 through 7 are intended to build intuition for when this is reasonable. The questions work toward visually assessing the quality of Normal approximations to several distributions. 
+
+The issue of the sd to use in a Normal approximation will be handled by use of the interquartile range, defined below.
+
+### Question 3
+
+Approximately, the $p^{th}$ quantile of a set $S$ of $n$ numerical values is the value $s_p$ such that the proportion of values in $S$ that are less than or equal to $s_p$ equals $p$. This concept may be familiar from the idea of the $95^{th}$ percentile. There are complications arising from the fact that there may not be a value $s_p$ for which the proportion exactly equals $p$. The "quantile" function in R defaults to one approach to addressing this. The default is acceptable for these exercises.
+
+The **interquartile range** of $S$ is the value $s_{0.75}-s_{0.25}$.
+
+#### Question 3.a
+
+By analogy, for a random variable with cumulative density function $F$, let $x_{0.25}$ satisfy $F\left(x_{0.25}\right)=0.25$. Let $x_{0.75}$ satisfy $F\left(x_{0.75}\right)=0.75$. Define $q=x_{0.75}-x_{0.25}$ to be the interquartile range for the random variable. Please calculate the values of $x_{0.75}$ for the Normal distributions with mean 0 and sd in ${1,2,3,...10}$ and plot the points consisting of the value of the sd and the corresponding $x_{0.75}$. This should give an indication of a simple function relating sd and $x_{0.75}$. (5 points)
+
+From the vector and corresponding plot, the function relating sd and $x_{0.75}$ for a normal distribution(mu=0) can be derived:
+$.6744898\sigma=x_{0.75}$. 
+
+```{r}
+(qnorm(0.75,mean=0,sd=1:10))
+plot(1:10,qnorm(0.75,mean=0,sd=1:10))
+```
+
+#### Question 3.b
+
+Note that for mean=0, sd=$\sigma$, and $w1$ and $w2$ satisfying  $0.25=\int_{-\infty}^{w_1}\frac{1}{\sqrt{2\pi\sigma^2}}e^{\frac{-x^2}{2 \sigma^2}}dx$ and $0.75=\int_{-\infty}^{w_2}\frac{1}{\sqrt{2\pi\sigma^2}}e^{\frac{-x^2}{2 \sigma^2}}dx$, the value of $q$ is $w2-w1$. By symmetry of the Normal family, $w_1=-w_2$. Please use this integration with a change of variable transforming the integrand to the density of a standard Normal distribution to calculate the function relating the value of $\sigma$ and $w2$ on theoretical grounds. You may find that defining $x_2$ by
+$0.75=\int_{-\infty}^{x_2}\frac{1}{\sqrt{2\pi}}e^{\frac{-x^2}{2}}dx$ simplifies your argument. (5 points)
+
+$\int_{-\infty}^{w_2}\frac{1}{\sqrt{2\pi\sigma^2}}e^{\frac{-x^2}{2 \sigma^2}}dx$
+
+$u=x/\sigma$ so $u\sigma=x$ and $du*\sigma=dx$
+
+$\int_{-\infty}^{u_2\sigma}\frac{1}{\sqrt{2\pi\sigma^2}}e^{\frac{-u^2}{2 }}\sigma*du$
+
+$\int_{-\infty}^{u_2\sigma}\frac{1}{\sqrt{2\pi}}e^{\frac{-u^2}{2 }}du$
+
+${u_2\sigma}={w_2}$
+
+
+#### 3.c
+
+Please use the results of 3.b to derive the function relating the interquartile range $q$ to the value of $\sigma$ for Normal distributions with mean equal to 0. (3 points) 
+
+$x_2=$ upper boundary of IQR for $N(0,1)\approx.6745$ 
+
+By symmetry, $q=2x_2\sigma$
+
+#### Question 3.d
+
+In terms of $x_2$, $\mu$, and $\sigma$, what is the interquartile range for a Normal distribution with mean equal to $\mu$ and "sd" equal to $\sigma$? (2 points)
+
+$q=2x_2\sigma$  IQR is a measure of spread.  The mean does not affect the spread of the distribution.
+
+### Question 4
+
+Consider the probability space $(S,M,P)$ that models the observed proportion of successes in $n$ independent Bernoulli trials with probability of success equal to $p$. For example, given $n=12$ and $p=0.4$, the outcome $\frac{5}{12}=.41\bar{6}$ in $(S,M,P)$ should have the same probability as the outcome of $5$ successes in $12$ independent Bernoulli trials with probability of success equal to $0.4$. Give a formula for the density function $f(s)$ for this probability space in terms of the density $f_{n,p}$ of the binomial distribution with size $n$ and probability $p$.  (5 points)
+
+$S={x/n=0/12,1/12,2/12...12/12}$
+
+$P(x/n)=p^x(1-p)^{n-x}\frac{n!}{x!(n-x)!}$
+
+so for example: $P(5/12)=.4^5(.6)^{7}\frac{12!}{5!(7)!}$
+
+### Question 5
+
+For each pair $(n,p)$ with $n\in\{10,50,1000\}$ and $p\in\{.5,.1,.01\}$, sample 100,000 values from the distribution of the observed proportion of successes in $n$ independent Bernoulli trials with probability of success equal to $p$ as in $(S,M,P)$ above and compute the mean and interquartile range of the sample. The data frame and vectors provided may be helpful.(5 points)
+
+```{r}
+ns<-c(10,50,1000)
+ps<-c(.5,.1,.01)
+
+dat.samp<-
+  data.frame(ns=rep(ns,times=rep(length(ps),length(ns))),
+             ps=rep(ps,times=length(ns)))
+
+binom10.5 <- data.frame(proportion=rbinom(100000,10,.5)/10)
+mean(binom10.5[["proportion"]])
+IQR(binom10.5[["proportion"]])
+binom10.1 <- data.frame(proportion=rbinom(100000,10,.1)/10)
+mean(binom10.1[["proportion"]])
+IQR(binom10.1[["proportion"]])
+binom10.01 <- data.frame(proportion=rbinom(100000,10,.01)/10)
+mean(binom10.01[["proportion"]])
+IQR(binom10.01[["proportion"]])
+binom50.5 <- data.frame(proportion=rbinom(100000,50,.5)/50)
+mean(binom50.5[["proportion"]])
+IQR(binom50.5[["proportion"]])
+binom50.1 <- data.frame(proportion=rbinom(100000,50,.1)/50)
+mean(binom50.1[["proportion"]])
+IQR(binom50.1[["proportion"]])
+binom50.01 <- data.frame(proportion=rbinom(100000,50,.01)/50)
+mean(binom50.01[["proportion"]])
+IQR(binom50.01[["proportion"]])
+binom1000.5 <- data.frame(proportion=rbinom(100000,1000,.5)/1000)
+mean(binom1000.5[["proportion"]])
+IQR(binom1000.5[["proportion"]])
+binom1000.1<- data.frame(proportion=rbinom(100000,1000,.1)/1000)
+mean(binom1000.1[["proportion"]])
+IQR(binom1000.1[["proportion"]])
+binom1000.01 <- data.frame(proportion=rbinom(100000,1000,.01)/1000)
+mean(binom1000.01[["proportion"]])
+IQR(binom1000.01[["proportion"]])
+
+```
+
+
+### Question 6
+
+For each $n$ and $p$ in question 5, plot the density histogram of the sample drawn in question 5. If the interquartile range is non-zero, superimpose the density curve of the Normal distribution with the same mean as the sample and $q$ equal to the interquartile range of the sample. You may use the theoretical relationship derived in Question 3 or the observed relationship in Question 3 to find the Normal distribution with the required value of $q$. (10 points)
+
+```{r}
+hist(rbinom(100000,10,.5)/10,breaks=11,freq = FALSE)
+x<-seq(0,10,by=0.02)
+curve(dnorm(x,mean=.5,sd=.15), add=TRUE)
+hist(rbinom(100000,10,.1)/10,breaks=5,freq = FALSE)
+x<-seq(0,10,by=0.02)
+curve(dnorm(x,mean=.1,sd=.15), add=TRUE)
+hist(rbinom(100000,10,.01)/10,breaks=10,freq = FALSE)
+x<-seq(0,10,by=0.02)
+curve(dnorm(x,mean=.01,sd=.001), add=TRUE)
+hist(rbinom(100000,50,.5)/50,breaks=20,freq = FALSE)
+x<-seq(0,50,by=0.02)
+curve(dnorm(x,mean=.5,sd=.06), add=TRUE)
+hist(rbinom(100000,50,.1)/50,breaks=5,freq = FALSE)
+x<-seq(0,50,by=0.02)
+curve(dnorm(x,mean=.1,sd=.044), add=TRUE)
+hist(rbinom(100000,50,.01)/50,breaks=20,freq = FALSE)
+x<-seq(0,50,by=0.02)
+curve(dnorm(x,mean=.01,sd=.015), add=TRUE)
+hist(rbinom(100000,1000,.5)/1000,breaks=20,freq = FALSE)
+x<-seq(0,1000,by=0.02)
+curve(dnorm(x,mean=.5,sd=.016), add=TRUE)
+hist(rbinom(100000,1000,.1)/1000,breaks=20,freq = FALSE)
+x<-seq(0,1000,by=0.02)
+curve(dnorm(x,mean=.1,sd=.01), add=TRUE)
+hist(rbinom(100000,1000,.01)/1000,breaks=20,freq = FALSE)
+x<-seq(0,1000,by=0.02)
+curve(dnorm(x,mean=.01,sd=.003), add=TRUE)
+```
+
+### Question 7
+
+Based on the plots in question 6, how does the value of $p$ affect the extent to which the sample distributions are approximately Normally distributed? How does the number $n$ of independent Bernoulli trials affect the extent to which the sample distributions are approximately Normally distributed? (5 points)
+
+For binomial/Bernoulli situations the closer the p value is to .5, the more symmetric the distribution is, which therefore lends itself to approximation with a Normal distribution.  That said, any binomial distribution regardless of the p value can eventually be approximated with a Normal curve, provided the sample size is high enough.  The higher sample size shrinks the standard deviation of the sample distribution and it appears closer to a smooth, continuous distribution.  The relevant example here is the final graph, where p=.01, but since n=100000, the natural skewness is overcome and the normal curve overlay fits reasonably well.
+
+
+
+
+
+
+
+

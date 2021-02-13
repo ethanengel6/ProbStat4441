@@ -1,0 +1,243 @@
+---
+title: "Problem Set 8"
+author: "C. Durso"
+date: '`r format(Sys.time(), "%d %B, %Y")`'
+output:
+  word_document: default
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+These questions were rendered in R markdown through RStudio (<https://urldefense.com/v3/__https://www.rstudio.com/wp-content/uploads/2015/02/rmarkdown-cheatsheet.pdf__;!!NCZxaNi9jForCP_SxBKJCA!H2o4AVX3C2X-TmYBjS04rM_qVhCWeHQ0mcn9vyoT7AvlzUgSuJFJ379LaZsNInZefg$ >, <https://urldefense.com/v3/__http://rmarkdown.rstudio.com__;!!NCZxaNi9jForCP_SxBKJCA!H2o4AVX3C2X-TmYBjS04rM_qVhCWeHQ0mcn9vyoT7AvlzUgSuJFJ379LaZtOrdH-oA$ > ).
+
+Please complete the following tasks, in R where applicable. Please generate a solution document in R markdown and upload the rendered .doc, .docx, or .pdf document.  You may add hand computations to a .doc or .docx if you prefer. In the rendered document, please show your code. That is, don't use "echo=FALSE".  
+
+In either case, your work should be based  on the data's being in the same folder as the R files. Please turn in your work on Canvas. Your solution document should have your answers to the questions and should display the requested plots.
+
+## 1. (5 points) 
+
+Let $X$ and $Y$ be independent random variables with $\chi^2$ distributions with $n$ and $m$ degrees of freedom respectively. What is the distribution of $X+Y$?. (5 points)
+
+The distribution of X+Y is itself a chi-square distribution with n+m degrees of freedom.
+ 
+## 2.
+
+Correlation may be reported as a measure of the linear association between two variables. An understanding of typical correlations between independent variables aids in understanding these reports.
+
+Consider two iid samples $X$ and $Y$, each of size $n$, from a standard Normal distribution. The following question investigates the range of correlations that are typical for such samples.
+
+### 2a.(10 points)
+
+Perform a numerical experiment to estimate the  $(0.025,0.25,.0.5, 0.75,975)$ quantiles of the sample correlations between two iid samples of sizes 10, 20, 50, and 100 from the standard Normal distribution.Display the quantiles in a table. Suggestion: for each size,simulate the process of drawing a pair of samples calculating their correlation many times then report the requested quantiles of the observed correlations.(5 points)
+
+```{r}
+n10_cors<- rep(NA, 1000)
+n20_cors<- rep(NA, 1000)
+n50_cors<- rep(NA, 1000)
+n100_cors<- rep(NA, 1000)
+
+for (i in 1:1000) {
+x1 <- c(rnorm(n=10))
+x2 <- c(rnorm(n=10))
+x3 <- c(rnorm(n=20))
+x4 <- c(rnorm(n=20))
+x5 <- c(rnorm(n=50))
+x6 <- c(rnorm(n=50))
+x7 <- c(rnorm(n=100))
+x8 <- c(rnorm(n=100))
+
+
+n10_cors[i] <- cor(x1,x2)
+n20_cors[i] <- cor(x3,x4)
+n50_cors[i] <- cor(x5,x6)
+n100_cors[i] <- cor(x7,x8)
+}
+
+
+n10 <- quantile(n10_cors,c(.025,.25,.5,.75,.975))
+n20 <- quantile(n20_cors,c(.025,.25,.5,.75,.975))
+n50 <- quantile(n50_cors,c(.025,.25,.5,.75,.975))
+n100 <- quantile(n100_cors,c(.025,.25,.5,.75,.975))
+quantileframe <- data.frame(n10,n20,n50,n100)%>% add_row(n10=10L, n20=20L,n50=50L,n100=100L) 
+
+rownames(quantileframe) <- c(".025",".25",".5",".75",".975","n")
+m1 <- t(quantileframe)
+qf2 <- data.frame(r1= row.names(m1), m1, row.names=NULL) 
+colnames(qf2) <- c("nvals",".025",".25",".5",".75",".975","n")
+qf2
+```
+
+### 2b.(10 points)
+
+Display the quantiles for each $n$ in a plot that has the value of $n$ on the x-axis, and the correlation quantiles on the y-axis. Please use bars to indicate the range between the 0.25 and 0.75 quantile and the range between the 0.025 and 0.975 quantile. Please plot a point at the 0.5 qunatile for each $n$. Please title the plot and label the axes with informative text. You may find "geom_errorbar" useful. You can position ticks on the x-axis using "scale_x_continuous(breaks=c(10,20,50,100))" for example.
+
+```{r}
+qfplot <- ggplot(qf2, aes(x = n, y = qf2[,4])) + geom_point()+ geom_errorbar(aes(ymin=qf2[,2], ymax=qf2[,6]))+geom_errorbar(aes(ymin=qf2[,3],ymax=qf2[,5]),width=2, color="blue")+ggtitle("Random samples from normal distributions.") +
+  xlab("sample size") + ylab("Correlation")
+qfplot
+
+   
+
+```
+
+
+
+## 3. (5 points each)
+
+The data in "pew_sampled_data.RData" come from the PEW RESEARCH CENTER
+2017 STEM SURVEY downloaded from https://urldefense.com/v3/__https://www.pewsocialtrends.org/dataset/2017-pew-research-center-stem-survey/__;!!NCZxaNi9jForCP_SxBKJCA!H2o4AVX3C2X-TmYBjS04rM_qVhCWeHQ0mcn9vyoT7AvlzUgSuJFJ379LaZupcRJ_5w$ 
+8/5/2019.
+
+The data here are sampled from the full survey data according to the survey weights.
+
+```{r}
+load("pew_sampled_data.RData")
+
+
+```
+
+### 3a.
+
+The variable recording whether the respondent was a STEM worker or a non-STEM worker is "WORKTYPE_FINAL".
+
+The variable "SCH7" records the respondents' selection based on the following question and options:
+
+What's the main reason many young people don't pursue college degrees in science, technology, engineering and mathematics? Is it mostly because. 
+
+1	They think these subjects are too hard
+
+2	They think these subjects are too boring
+
+3	They think these subjects are not useful for their careers
+
+4	Some other reason (please specify) 
+
+5 Refused
+
+Please create a 2-way table that gives the proportion of respondents among Stem workers that selected each response and the proportion of respondents among non-Stem workers that selected each response. 
+
+For the purposes of table display, please shorten the responses to "too hard", "too boring", "not useful", "other".
+  
+```{r}
+
+stem <- samp$SCH7[which(samp$WORKTYPE_FINAL=="STEM Worker")]
+nonstem <- samp$SCH7[which(samp$WORKTYPE_FINAL!="STEM Worker")]
+
+stemcounts <- c(length(which(stem=="They think these subjects are too hard")),length(which(stem=="They think these subjects are too boring")),length(which(stem=="They think these subjects are not useful for their careers")),length(which(stem=="Some other reason (please specify)")),length(which(stem=="Refused")))
+stemprops <- round((stemcounts/293),digits=2)
+
+nonstemcounts <- c(length(which(nonstem=="They think these subjects are too hard")),length(which(nonstem=="They think these subjects are too boring")),length(which(nonstem=="They think these subjects are not useful for their careers")),length(which(nonstem=="Some other reason (please specify)")),length(which(nonstem=="Refused")))
+nonstemprops <- round((nonstemcounts/293),digits=2)
+
+
+countframe <- data.frame(stemcounts,nonstemcounts)
+rownames(countframe) <- c("Too Hard","Too Boring","Not Useful","Other","Refused")
+propframe <- data.frame(stemprops,nonstemprops)
+rownames(propframe) <- c("Too Hard","Too Boring","Not Useful","Other","Refused")
+propframe
+```
+ 
+  
+## 3b.
+
+Please do a $\chi^2$  test and a Fisher's Exact Test to determine if the responses to "SCH7" are independent of "WORKTYPE_FINAL", and compare the results. 
+
+The two tests generated similar P values, .04 & .037, respectively.  In each case, we would reject the null hypothesis.  There is compelling statistical evidence that the two categorical variables are not independent.
+  
+```{r}
+countframe
+chisq.test(countframe) 
+fisher.test(countframe)
+```
+
+
+
+## 3c.
+
+Please repeat 2b. omitting respondents who answered "refused".
+
+When the "refused" option is omitted, the conclusion is still the same, rejection of the presumption of independence. In this case the results are even more convincing, as the p-values are lower.  
+```{r}
+newframe <- countframe[1:4,]
+newframe
+chisq.test(newframe) 
+fisher.test(newframe)
+```
+
+
+### Harassment
+
+The variable "HARASS3" records the respondents' selection based on the following question and options:
+
+Have you ever personally experienced sexual harassment at work, or have you not experienced this?
+
+1	Yes, I have experienced sexual harassment at work
+
+2	No, I have not experienced sexual harassment at work
+
+3 Refused
+
+(Note that the responses are self-reported. Respondents may differ in their perception of harassment and their willingness to report harassment.)
+
+The genders of the respondents are recorded as "Male" or "Female" in the variable "PPGENDER"
+
+(Note that limitation to binary gender reports makes these data ineffective for study of the association of non-binary gender identification with the remaining variables. )
+
+One categorization of the ethnicities of the respondents is recorded in the variable "PPETHM"
+
+### 3d.
+
+Please create a subset of the data that omits responses from the small categories "HARASS3"=="Refused". The function "droplevels" applied to a factor variable will omit levels that aren't represented in the data.
+
+Please run and report the result of an appropriate test of the null hypothesis that the response to "HARASS3" is independent from the response to "PPGENDER" on this subset. Please give a statistical interpretation of the results.
+
+For either test, at either the alpha .05 or .01 level, the null hypothesis is rejected.  There is overwhelmingly convincing evidence that gender and experiencing harassment at work are not independent.  Using the results of the chi-squared test, which rendered a p-value = 0.0009919, if the two categorical variables truly were independent, the probability of getting survey results this disparate, or greater, is less than 1/10 of 1%.
+
+```{r}
+male <- samp$HARASS3[which(samp$PPGENDER=="Male")]
+female <- samp$HARASS3[which(samp$PPGENDER=="Female")]
+malecounts <- c(length(which(male=="Yes, I have experienced sexual harassment at work")),length(which(male=="No, I have not experienced sexual harassment at work")))
+femalecounts <- c(length(which(female=="Yes, I have experienced sexual harassment at work")),length(which(female=="No, I have not experienced sexual harassment at work")))
+harassframe <- data.frame(malecounts,femalecounts)
+rownames(harassframe) <- c("Yes","No")
+harassframe
+chisq.test(harassframe) 
+fisher.test(harassframe)
+```
+
+### 3e.
+
+Please restrict the data from 3a the respondents who report "Female" in the "PPGENDER" variable. Please provide a table of the proportion of each category of "PPETHM" that responds "Yes, I have experienced sexual harassment at work". Please run and report the result of an appropriate test of the null hypothesis that the response to "HARASS3" is independent from the response to "PPETHM" on this subset. Please give a statistical interpretation of the results. 
+
+With p values of .017 and .019, respectively, we reject the null hypothesis at the .05 level, but not the .01 level.  There is some evidence, at the alpha=.05 level, that the variables, ethnicity experiencing workplace harassment (within females) are not independent.  If the variables, truly were independent, the probability of getting survey results this disparate or greater, between the different ethnicities is .017, or .019, depending on which test results we are using.
+
+```{r}
+wnf <- samp$HARASS3[which(samp$PPGENDER=="Female" & samp$PPETHM=="White, Non-Hispanic")]
+wnfcounts <- c(length(which(wnf=="Yes, I have experienced sexual harassment at work")), length(which(wnf=="No, I have not experienced sexual harassment at work")))
+
+bnf<- samp$HARASS3[which(samp$PPGENDER=="Female" & samp$PPETHM=="Black, Non-Hispanic")]
+bnfcounts <- c(length(which(bnf=="Yes, I have experienced sexual harassment at work")), length(which(bnf=="No, I have not experienced sexual harassment at work")))
+
+
+onf<- samp$HARASS3[which(samp$PPGENDER=="Female" & samp$PPETHM=="Other, Non-Hispanic")]
+onfcounts <- c(length(which(onf=="Yes, I have experienced sexual harassment at work")), length(which(onf=="No, I have not experienced sexual harassment at work")))
+
+hispf <- samp$HARASS3[which(samp$PPGENDER=="Female" & samp$PPETHM=="Hispanic")]
+hispfcounts <- c(length(which(hispf=="Yes, I have experienced sexual harassment at work")), length(which(hispf=="No, I have not experienced sexual harassment at work")))
+
+
+twoplf <- samp$HARASS3[which(samp$PPGENDER=="Female" & samp$PPETHM=="2+ Races, Non-Hispanic")]
+twoplfcounts <- c(length(which(twoplf=="Yes, I have experienced sexual harassment at work")), length(which(twoplf=="No, I have not experienced sexual harassment at work")))
+
+ethnframe <- data.frame(wnfcounts,bnfcounts,onfcounts,hispfcounts,twoplfcounts)
+rownames(ethnframe) <- c("Yes","No")
+chisq.test(ethnframe) 
+fisher.test(ethnframe)
+```

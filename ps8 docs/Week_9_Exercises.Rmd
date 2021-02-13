@@ -1,0 +1,87 @@
+---
+title: "Untitled"
+author: "Alison Kahn"
+date: "8/12/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+minority <- c(487, 544, 567, 500, 458, 531, 493, 388, 518, 495, 
+              466, 471, 455, 562, 395, 576, 450, 502, 512, 538)
+
+non.minority <- c(592, 649, 515, 536, 621, 483, 534, 577, 600, 553, 
+                  529, 714, 484, 636, 595, 660, 530, 598, 497, 597)
+
+(mean.minority <- mean(minority))
+#mean = 483, sd = 50
+pop_mean_min <- 483
+pop_sd_min <- 50
+
+(mean.non.min <- mean(non.minority))
+#mean = 553 sd = 50
+pop_mean_non <-553
+pop_sd_non <-50
+
+(z_val.min <- (mean.minority-pop_mean_min)/(pop_sd_min))
+
+(z_val.non <- (mean.non.min-pop_mean_non)/(pop_sd_non))
+
+# From Neba:  We should have calculated the difference between the means of the 2 groups as our z-statistic
+
+#2 T-Test output
+t.test(minority, non.minority)
+
+
+# draw 1000 samples of length x and calculate the mean, use the samples as the distribution.  See if the population difference is within this confidence interval.  You are using the diff between 2 populations is 0.  You need to check that confidence interval includes 0.
+
+library(boot)
+#bootstrapping instructions from Neba
+
+n1 <- length(minority)
+n2 <- length(non.minority)
+
+# Draw 5000 bootstrap samples stratified by household type. 
+iter = 1000
+mean.diff <- rep(NA, iter)
+for (i in 1:iter) {
+  minority.samp <- sample(minority, n1, replace = T)
+  non.min.samp <- sample(non.minority, n2, replace = T)
+  mean.diff[i] <- mean(minority.samp)-mean(non.min.samp)
+}
+
+
+hist(mean.diff)
+
+
+
+
+# Look at quantiles of the mean difference
+
+quantile(mean.diff,c(.025,.975))
+
+
+
+
+```
+
+Null hypothesis:  There is no statistically significant difference between the mean SAT scores of the minority and non minority students.
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

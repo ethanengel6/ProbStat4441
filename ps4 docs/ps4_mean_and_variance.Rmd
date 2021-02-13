@@ -1,0 +1,291 @@
+---
+title: "Problem Set 4"
+author: "C. Durso"
+output:
+  word_document: default
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+
+```
+
+## Introduction
+
+We discussed parameter fitting in class, and saw examples of modeling data with a model from a parametrized family. In these examples the model with the optimal parameters fit the corresponding data fairly well. This depends on the model family's being well suited to the data. If it isn't, even the best parameters won't produce a model that closely reflects the data. Please be aware of this possibility as you work through the examples here. 
+
+Please complete the following tasks regarding the data in R. Please generate a solution document in R markdown and upload the .Rmd document and a rendered  .doc, .docx, or .pdf document.  Your work should be based  on the data's being in the same folder as the .Rmd file. Please turn in your work on Canvas. Your solution document should have your answers to the questions and should display the requested plots. Each part is worth 5 points.
+
+These questions were rendered in R markdown through RStudio (<https://www.rstudio.com/wp-content/uploads/2015/02/rmarkdown-cheatsheet.pdf>, <http://rmarkdown.rstudio.com> ).
+
+## Question 1
+
+This question uses 2018 data primarily for Denver county accessed through IPUMS-USA, University of Minnesota, www.ipums.org , 
+
+Steven Ruggles, Sarah Flood, Ronald Goeken, Josiah Grover, Erin Meyer, Jose Pacas and Matthew Sobek. IPUMS USA: Version 9.0 [dataset]. Minneapolis, MN: IPUMS, 2019. https://doi.org/10.18128/D010.V9.0
+
+The PUMA-to-county restriction was done using MABLE, http://mcdc.missouri.edu/websas/geocorr12.html
+ 
+
+### IPUMS Data
+
+Read in the ipums data 
+
+```{r}
+dat<-read.csv("usa_00016_trim.csv")
+```
+
+Trim to PUMAs that are predominantly in Denver. Restrict to respondents who are at least 25 years old with non-zero income. The variable "INCTOT" gives total annual individual income. The variable "EDUC" consists of ordered categories of amount of formal education, with 0 representing the least and 11 representing the most. Details are in the "educ_codes.csv".
+
+The plot shows the "jitter" tool and the "alpha" approach for displaying large numbers of data points without losing information through plotting points on top of each other.
+
+```{r}
+denver<-filter(dat,PUMA>=812 & PUMA<=816, INCTOT>0,AGE>=25)
+g<-ggplot(denver,aes(x=EDUC,y=INCTOT))+geom_jitter(alpha=.05)
+g
+g<-g+coord_cartesian(ylim =c(0,1.5e5))
+g
+```
+
+### Question 1.a (5 points)
+
+Please add the least squares best fit line in orange to the plot "g" above, save the result as "g", and display the result. What change in income is associated with an increase of 1 in the "EDUC" category?
+
+We would predict an increase of $9634 in the income category, if there were an increase of 1 in the EDUC category.
+
+```{r}
+g <- g + geom_smooth(method=lm,color="orange",se=FALSE)
+g
+lm(INCTOT~ EDUC, data = denver)
+```
+
+### Question 1.b (5 points)
+
+Please add the income means for each education category in orange and the income medians (R function "median") in each category in blue to the plot "g", save the result as "g", and display the result.
+
+```{r}
+gd <- data.frame(denver%>%
+  group_by(EDUC) %>%
+    summarise(INCTOT=mean(INCTOT)))
+gm <- data.frame(denver%>%
+   group_by(EDUC) %>%
+     summarise(INCTOT=median(INCTOT)))
+gm  
+
+g <- g + geom_point(data=gd,color="orange")+geom_point(data=gm,color="Blue")
+g
+  
+
+```
+
+### Question 1.c (5 points)
+
+The least squares criterion is one way of fitting a line to a collection of points $\left\{(x_1,y_2),(x_2,y_2),...(x_n,y_n)\right\}$.
+
+One alternative is to fit the line that minimizes the sum of the absolute errors $|y_i-(mx_i+b)|$. 
+
+Please use "nlm" to fit this line for "INCTOT" as a function of "EDUC" and add this line in blue to "g", save the result as "g", and display the result. The slope and intercept from 1.a are option for the starting parameters. Other starting parameters may give other lines.   
+
+```{r}
+nlmFunc <- function(x){
+  return(sum(abs(gm-(9634*x-16587))))
+}
+nlm(nlmFunc,p=9634)
+
+g <- g + geom_smooth(data=denver,method=nlm,color="blue",se=FALSE)
+g
+
+newFrame <- subset.data.frame(denver,EDUC<=5,select=c(EDUC,INCTOT))
+newFrame 
+g2<-ggplot(newFrame,aes(x=EDUC,y=INCTOT))+geom_jitter(alpha=.05)+coord_cartesian(ylim =c(0,1e5))+ geom_smooth(method=lm,color="orange",se=FALSE)
+
+lm(INCTOT~ EDUC, data = newFrame)
+gd2 <- data.frame(newFrame%>%
+  group_by(EDUC) %>%
+    summarise(INCTOT=mean(INCTOT)))
+gm2 <- data.frame(newFrame%>%
+   group_by(EDUC) %>%
+     summarise(INCTOT=median(INCTOT)))
+g2 <- g2 + geom_point(data=gd2,color="orange")+geom_point(data=gm2,color="Blue")
+g2
+nlmFunc2 <- function(x){
+  return(sum(abs(gm2-(9634*x-16587))))
+}
+nlm(nlmFunc,p=1101)
+
+g2 <- g2 + geom_smooth(data=newFrame,method=nlm,color="blue",se=FALSE)
+g2
+stddevs <- data.frame(denver%>%
+   group_by(EDUC) %>%
+     summarise(INCTOT=sqrt(var(INCTOT))))
+stddevs
+
+```
+
+### Question 1.d (5 points)
+
+Please redo 1.a-1.c restricting first to "EDUC" less than or equal to 5, then to "EDUC" greater than or equal to 5.
+
+### Question 1.e (5 points)
+
+Please comment on the quality of the models fitted in parts 1.a-1.d. In particular, please identify the cases in which a line appears to be an appropriate summary of the data, identify the cases in which a line does not appear to be an appropriate summary of the data, and explain your reasoning. Also, please comment on the apparent relationship between the two types of fitted line and the two statistics, mean and median, for location of center. Finally, please comment on the size of the estimated change in "INCTOT" associated with a change in "EDUC" relative to the sample standard deviations of "INCTOT" within "EDUC" category. 
+
+It does not look like linear models are ideal in either situation.  The residuals of the means and medians relative to the least squares line seem to follow a pattern, rather than be arbitrarily scattered.  As far as the measures of center go, overall the medians are closer to the Least Squares line than the means, probably because of outlying values.  The sample standard deviations within each category get progressively larger, generally speaking.  At the same time, the predicted change in INCTOT increases also.  The slope of the least squares line is when EDUC <= 5 is $1101 for each additional EDUC category.  For all categories it is $9634.
+
+## Question 2
+
+This question uses the distribution means and variances to compare Poisson distributions and binomial distributions to corresponding Normal distributions. 
+
+### Question 2.a (5 points)
+
+The Poisson distribution with parameter $\lambda$ is a discrete probability distribution with non-negative integer outcomes. The probability of the outcome $k$ equals $\frac{\lambda ^k}{k!}\exp (-\lambda)$. Given the following computations, identify the mean and variance of the Poisson distribution with parameter $\lambda$.
+
+$$\sum_{k=0}^{\infty}\frac{\lambda^{k}}{k!}=\exp(\lambda)$$
+and
+
+$$\sum_{k=0}^{\infty}\frac{k\lambda^{k}}{k!}=\sum_{k=1}^{\infty}\frac{k\lambda^{k}}{k!}$$ $$e^{-\lambda}\sum_{k=0}^{\infty}\frac{k\lambda^{k}}{k!}=e^{-\lambda}\sum_{k=1}^{\infty}\frac{k\lambda^{k}}{k!}$$
+
+
+
+$$=\lambda\sum_{k=1}^{\infty}\frac{\lambda^{k-1}}{(k-1)!}=\lambda\sum_{k=0}^{\infty}\frac{\lambda^{k}}{k!}$$                                          $$=e^{-\lambda}\lambda\sum_{k=1}^{\infty}\frac{\lambda^{k-1}}{(k-1)!}=e^{-\lambda}\lambda\sum_{k=0}^{\infty}\frac{\lambda^{k}}{k!}=e^{-\lambda}\lambda*e^{\lambda}=\lambda(mean of Poisson distribution)$$
+
+and  finally
+
+$$e^{-\lambda}\sum_{k=0}^{\infty}\frac{k^{2}\lambda^{k}}{k!}=e^{-\lambda}\sum_{k=2}^{\infty}\frac{k(k-1)\lambda^{k}}{k!}+e^{-\lambda}\sum_{k=0}^{\infty}\frac{k\lambda^{k}}{k!}$$
+$$=e^{-\lambda}\lambda^{2}\sum_{k=2}^{\infty}\frac{k(k-1)\lambda^{k-2}}{k!}+e^{-\lambda}\lambda\sum_{k=0}^{\infty}\frac{\lambda^{k}}{k!}$$
+$$=e^{-\lambda}\lambda^{2}\sum_{k=0}^{\infty}\frac{\lambda^{k}}{k!}+e^{-\lambda}\lambda\sum_{k=0}^{\infty}\frac{\lambda^{k}}{k!}=e^{-\lambda}\lambda^{2}*e^{-\lambda}+e^{-\lambda}\lambda*e^{\lambda}=\lambda^{2}+\lambda$$
+Finally:  $$\lambda^{2}+\lambda-\lambda^{2}=\lambda$$, which is the variance of the Poisson disrtibution.
+
+
+
+### Question 2.b (5 points)
+
+In this question, you will compare binomial distributions with Normal distributions having related means and variances.
+
+For each pair $(n,p)$ with $n\in\{2,5,20\}$ and $p\in\{0.5, 0.2,0.1\}$, please create a column plot over the non-negative integers less than or equal to $n$ for which the quantile function of the $binomial(n,p)$ distribution is in $[.01,.99]$. Set the height of the column over the value $k$ equal to the probability of $k$ under the distribution $binomial(n,p)$. On this plot, draw the density of the Normal distribution with the same mean and variance as $binomial(n,p)$. Please label the plots with the corresponding $n$ and $p$ 
+
+```{r}
+binom1 <- data.frame(x=0:2,y=dbinom(0:2,2,.5))
+ggplot(data=binom1, aes(x=x,y=y)) + geom_bar(stat="identity")+labs(x="n=2 p=.5",y="p")+stat_function(fun=dnorm,args=list(mean=1,sd=.707))
+binom2 <- data.frame(x=0:2,y=dbinom(0:2,2,.2))
+ggplot(data=binom2, aes(x=x,y=y)) + geom_bar(stat="identity")+labs(x="n=2 p=.2",y="p")+stat_function(fun=dnorm,args=list(mean=.4,sd=.566))
+binom3 <- data.frame(x=0:2,y=dbinom(0:2,2,.1))
+
+ggplot(data=binom3, aes(x=x,y=y)) + geom_bar(stat="identity")+labs(x="n=2 p=.1",y="p")+stat_function(fun=dnorm,args=list(mean=.2,sd=.134))
+
+binom4 <- data.frame(x=0:5,y=dbinom(0:5,5,.5))
+ggplot(data=binom4, aes(x=x,y=y)) + geom_bar(stat="identity")+labs(x="n=5 p=.5",y="p")+stat_function(fun=dnorm,args=list(mean=2.5,sd=.79))
+
+binom5 <- data.frame(x=0:3,y=dbinom(0:3,5,.2))
+ggplot(data=binom5, aes(x=x,y=y)) + geom_bar(stat="identity")+labs(x="n=5 p=.2",y="p")+stat_function(fun=dnorm,args=list(mean=1,sd=.4))
+
+binom6 <- data.frame(x=0:2,y=dbinom(0:2,5,.1))
+ggplot(data=binom6, aes(x=x,y=y)) + geom_bar(stat="identity")+labs(x="n=5 p=.1",y="p")+stat_function(fun=dnorm,args=list(mean=.5,sd=.0707))
+
+binom7 <- data.frame(x=5:15,y=dbinom(5:15,20,.5))
+ggplot(data=binom7, aes(x=x,y=y)) + geom_bar(stat="identity")+labs(x="n=20 p=.5",y="p")+stat_function(fun=dnorm,args=list(mean=10,sd=1.58))
+
+binom8 <- data.frame(x=0:8,y=dbinom(0:8,20,.2))
+binom8
+ggplot(data=binom8, aes(x=x,y=y)) + geom_bar(stat="identity")+labs(x="n=20 p=.2",y="p")+stat_function(fun=dnorm,args=list(mean=4,sd=.8))
+
+binom9 <- data.frame(x=0:5,y=dbinom(0:5,20,.1))
+ggplot(data=binom9, aes(x=x,y=y)) + geom_bar(stat="identity")+labs(x="n=20 p=.1",y="p")+stat_function(fun=dnorm,args=list(mean=2,sd=.424))
+```
+
+### Question 2.c (5 points)
+
+In this question, you will compare Poisson distributions with Normal distributions having related means and variances.
+
+For values $\lambda\in\{2,5,25\}$, please create a column plot over the non-negative integers $k$ for which the quantile function of the $Poisson(\lambda)$ distribution is in $[.01,.99]$. Set the height of the column over the value $k$ equal to the probability of $k$ under the distribution $Poisson(\lambda)$. On this plot, draw the density of the Normal distribution with the mean and variance both equal to $\lambda$. Please label the plots with the corresponding value of $\lambda$.
+
+```{r}
+poisson1 <- data.frame(x=0:6,y=dpois(0:6,2))
+ggplot(data=poisson1, aes(x=x,y=y))+ geom_bar(stat="identity")+labs(x="lambda=2",y="p")+stat_function(fun=dnorm,args=list(mean=2,sd=1.414))
+
+poisson2 <- data.frame(x=1:10,y=dpois(1:10,5))
+ggplot(data=poisson2, aes(x=x,y=y))+ geom_bar(stat="identity")+labs(x="lambda=5",y="p")+stat_function(fun=dnorm,args=list(mean=5,sd=2.236))
+
+poisson3 <- data.frame(x=16:35,y=dpois(16:35,25))
+ggplot(data=poisson3, aes(x=x,y=y))+ geom_bar(stat="identity")+labs(x="lambda=25",y="p")+stat_function(fun=dnorm,args=list(mean=25,sd=5))
+```
+
+## Question 3
+
+This problem simulates the situation in which a large number of researchers each draw samples of a specified size from a population and count the number of successes in the sample. Each researcher tests the hypothesis that the number of successes in their sample is consistent with the null model that the number of successes has a binomial distribution with size equal to the sample size and the probability of success equal to a specified value $pr$.
+
+You will simulate the results in the case in which the samples are in fact drawn from the null distribution, the binomial distribution with size equal to the sample size and the probability of success equal to $pr$.
+
+### Question 3.a (5 points)
+
+Assume each researcher uses the null model that their sample is sample from a binomial distribution with the size parameter equal to the number of items in the sample and the parameter giving the probability success equal to the value $pr$. One way to define a p-value for this null hypothesis is to calculate the twice probability of a value less than or equal to the observed number of successes under the null hypothesis, to calculate twice the probability of a value greater than or equal to the observed number of successes under the null hypothesis, and to take the smaller of these to be the p-value.
+
+Please complete the function template below to make a p-value calculator for the researchers. The function should return the p-value of this test of the null hypothesis if the argument "obs" is the observed number of successes, the parameter "size" is the sample size, and the parameter "pr" is the probability of success under the null hypothesis. For future use, you may wish to implement this so that, given a vector of observations, the function returns a vector of the corresponding p-values.
+
+Please apply your function to the case of an observation of 25 successes in a sample of size 100 with hypothesized probability of success equal to .3 and to an observation of 30 successes in a sample of size 100 with hypothesized probability of success equal to .3
+
+```{r}
+# p-value calculator
+
+p.get<-function(obs,size,pr){min((2*pbinom(obs,size,pr)),(2*(1-pbinom(obs-1,size,pr))))
+}
+
+
+p.get(25,100,.3)
+p.get(30,100,.3)
+
+```
+
+### Question 3.b (5 points)
+
+Write a function with the arguments "n" for the number of researchers, "size" for the sample size, "pr" for the probability of success, and "p" for the p-value. The function should draw "n" samples from the binomial distribution with size equal "size" and probability of success equal to "pr". It should return the number of p-values less that or equal to "p" for the test above of the null hypothesis that the sample comes from a binomial distribution with size equal "size" and probability of success equal to "pr". (These are called *type 1 errors* at the significance level "p".) Apply "replicate" to this function 1000 times and calculate the mean number of type 1 errors for the sets of values
+
+n=200,size=100,pr=.3,p=.05
+
+n=200,size=500,pr=.3,p=.05
+
+n=400,size=500,pr=.3,p=.01
+n=400,size=1000,pr=.3,p=.01
+
+What do the numbers computed represent in terms of the conclusion drawn by each of the 200 or 400 research teams? 
+
+The larger the sample size, the less frequently, proportionally speaking, that Type 1 errors will occur.
+
+```{r}
+#p.get(40,100,.3)
+#p.get(20,100,.3)
+
+n=200
+size=100
+pr=.3
+p=.05
+
+pvals1 <- c(replicate(n,p.get(rbinom(1,size,pr),size,pr),simplify=FALSE))
+length(which(pvals1<=p))
+
+
+size2=500
+pvals2 <- c(replicate(n,p.get(rbinom(1,size2,pr),size2,pr),simplify=FALSE))
+length(which(pvals2<=p))
+
+n2=400
+p2=.01
+pvals3 <- c(replicate(n2,p.get(rbinom(1,size2,pr),size2,pr),simplify=FALSE))
+length(which(pvals3<=p2))
+
+size3=1000
+pvals4 <- c(replicate(n2,p.get(rbinom(1,size3,pr),size3,pr),simplify=FALSE))
+length(which(pvals4<=p2))
+
+```
+
+
+
+
+
+
+
+

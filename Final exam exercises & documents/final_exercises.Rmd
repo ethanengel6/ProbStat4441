@@ -1,0 +1,178 @@
+---
+title: "Final Exercises"
+author: "C. Durso"
+output:
+  word_document: default
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggpubr)
+```
+
+## Instructions
+
+Please work these problems on your own. You may use web searches, but not interactive methods such as asking others online or in person.
+
+Please complete the questions on this template and upload your solutions in a single knitted Word or pdf document. Please also upload your completed template.
+
+In light of the exam context, the data sets for the questions have been generated clearly to satisfy or obviously to violate the requirements of the statistical procedures. If reasonable exploratory analysis is done, there should be little ambiguity as to whether the given data satisfy the requirements. This is unrealistic, but less stressful for students and graders alike.
+
+## Questions
+
+1. Student's t, one sample 
+
+```{r}
+load("dat_one_sample.RData")
+```
+
+  1.a. Please make a histogram of dat_one_sample with informative bin widths. (2 points)
+```{r}
+
+hist(dat_one_sample)
+
+``` 
+   
+  1.b. Please generate a Normal qq plot for dat_one_sample.(2 points)
+  
+```{r}
+qqnorm(dat_one_sample)
+```
+
+ 1.c. Please perform a Student's t-test of the null hypothesis that dat_one_sample is drawn from a Normal population with mean equal to 1. Report the 90% (not 95%) confidence interval for the mean. Please do this whether or not your work in 1.a and 1.b indicates that the hypotheses making the one sample Student's test a test of location of the mean are satisfied. (3 points)
+ 
+```{r}
+t.test(dat_one_sample,
+       mu = 1,
+       conf.level = 0.9)
+
+```
+ 
+ 1.d. Considering your work in 1.a and 1.b, how do you interpret the results (p-value and confidence interval) in 1.c? (3 points)
+ 
+ While the sample size of 30 is sufficiently large, the normality assumption is flagrantly violated.  The histogram is not unimodal, but two clusters with a gap in between.  Naturally the test can still be run and the confidence interval generated, but the results are not especially meaningful.  If the normality had not been violated, the p-value of .4146 would not be sufficiently low enough to reject the null hypothesis.  It would be quite possible that 1 is the true mean.  As further evidence, 1 is inside the confidence interval.
+ 
+2. Wilcoxon signed rank
+
+  2.a. Please perform a Wilcoxon signed rank test of the null hypothesis that dat_one_sample is drawn from a population symmetric around its mean with mean equal to 1. (5 points)
+  
+```{r}
+wilcox.test(dat_one_sample,mu=1)
+
+```
+  
+  2.b. Considering your work in 1.a and 1.b, how do you interpret the results in 2.a? (5 points)
+  
+Since the data set is more or less symmetric, the assumptions for the Wilcoxon signed rank test are met, as there is no normality presumption.  Given the p-value of .02479, we would reject the null hypothesis at the alpha=.05 level.  There is statistical evidence that the true location of mu is not = 1.
+
+3. The data set dat_pre_post simulates pre-intervention measurements for 20 individuals together with their post-intervention measurements. Carry out the most powerful test we have learned of the null hypothesis that the intervention is not associated with any systematic increase or decrease in the measurement. Please justify your choice of test. (Note that to have evidence that any change was caused by the intervention, a controlled experiment would be required.) To help you decide which test to use, please generate a scatter plot of the pre values against the post values. (10 points)
+
+Looking at the scatterplot as well as the normal qqplots and histograms for the pre and post samples, it looks as though the paired samples Wilcoxon Test would be the most appropriate, as well as the most powerful.  We will conduct a two sided test to maximize its power.  Given the p-value of .01923, we would reject the null hypothesis at the alpha=.05 level.  There is statistical evidence to suggest a statistically significant difference between the pre and post observations.  
+
+```{r}
+load("dat_pre_post.RData")
+dat_pre_post
+plot(dat_pre_post)
+hist(dat_pre_post$pre)
+qqnorm(dat_pre_post$pre)
+hist(dat_pre_post$post)
+qqnorm(dat_pre_post$post)
+wilcox.test(dat_pre_post$pre, dat_pre_post$post, paired = TRUE, alternative = "two.sided")
+```
+
+
+4. The data dat_two_sample simulate independent, identically distributed samples from a population with the samples from $X$ in the "val" column, labeled with "gp"="x" and independent, identically distributed samples from a population with the distribution $Y$ in the "val" column, labeled with "gp"="y"
+
+```{r}
+load("dat_two_sample.RData")
+dat_two_sample
+```
+
+  4.a.Please visually assess the Normality of the x's and the y's. (5 points)
+  
+  Separately looking at the normal qq plots of the x and y values, the x values theoretical and sample quantiles line up nicely.  The y value qq plot is not as straight, as there are a cluster of values to the right of the theoretical quantile of 0.  We could feel more comfortable with the presumption of normality of the x values than the y values.
+
+```{r}
+xvals <- dat_two_sample$val[1:30]
+yvals <- dat_two_sample$val[31:56]
+qqnorm(xvals)
+qqnorm(yvals)
+```
+
+  4.b. Please display histograms or density plots of the x's and the y's. (5 points)
+  
+```{r}
+hist(xvals)
+hist(yvals)
+
+```
+  
+  4.c. Please carry out an F test of the equality of the variance of the x's and y's.(5 points)
+  
+```{r}
+var.test(xvals, yvals, ratio = 1)
+
+```
+  
+  4.d. Please carry out Welch's test of the null hypothesis that the means of x and y are equal. Please interpret the result using the work in 4.a-4.c. (5 points)
+  
+  Given the results of the F-test of equality of variance in 4c, there is overwhelming statistical evidence that the two samples come from distributions with different variances.  Because of this, Welch's t-test is the appropriate test for the difference of means of the two samples.  Given the p-value of .1238, we cannot reject the null hypothesis, that the difference in means is = 0.  There is not enough statistical evidence to suggest that the two samples come from distributions with different means.
+  
+```{r}
+t.test(xvals,yvals)
+```
+  
+5. Please carry the Mann Whitney U test on x and y. Please interpret the result using the work in 4.a-4.c.(10 points)
+
+  Most of the assumptions for the Mann Whitney U test are met, specifically independent groups, and independence of observations.  There is a major assumption violation however, with the difference in variances as well as the observable difference in shape of the samples.  Therefore we would defer to the results of the Welch two sample t-test in 4d.  That said, the tests generate similar p-values, which would lead to similar conclusions.  There would not be rejection of the null hypothesis that the true difference of means=0.
+
+```{r}
+wilcox.test(xvals,yvals)
+
+```
+
+
+6. Please carry out a $\chi^2$ test of independence on the contingency table in "mat". Please interpret the results.(10 points)
+
+  Given the p-value of .01459, we reject the null hypothesis at the alpha = .05 level, that the categorical variables are independent.  There is statistical evidence to suggest that the variables are not independent.
+
+```{r}
+load("mat.Rdata")
+chisq.test(mat) 
+```
+
+7. Please carry out Fisher's exact test on "mat" and interpret the results. (10 points)
+
+  Given the p-value of .009642, we would reject the null hypothesis at the .05 or .01 levels, that the row and column variables are independent.  There is strong statistical evidence that the row and column variables are not independent.
+
+```{r}
+fisher.test(mat)
+
+```
+
+
+8.a. Please fit a linear regression model giving post as a linear function of pre from the  dat_pre_post data set. Display the coefficients with their p-values. (5 points)
+
+```{r}
+prepostmod <- lm(post ~ pre, data=dat_pre_post)
+summary(prepostmod)
+```
+
+8.b. Please use your work in question 3 and any additional plots you find informative to address the validity of the model, the coefficients, and the p-values. Please address the linearity of the relation between pre and post, the Normality of the residuals, and the issue of influential observations.(15 points) 
+
+  There are several factors which call into question the linear model that is generated for the pre and post observation data. One is the clear lack of normality of the residuals.  The normal qq plot does not follow a straight line, and a histogram of the residuals shows a lack of symmetry and unimodality.  There are also several points from the data set which are exerting a disproportionate influence on the model.  For example, the point at approximately (3.67,2.39) as well as the point located at (7.62,6.67).  These are helping cause a high standard error and consequently high p-value for the y- intercept, speaking to a lack of certainty of it's true location.
+
+```{r}
+dat_pre_post
+plot(dat_pre_post)
+prepostres <- resid(prepostmod)
+qqnorm(prepostres)
+hist(prepostres)
+```
+
+
+
+

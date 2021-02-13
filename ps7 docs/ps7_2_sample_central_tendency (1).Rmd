@@ -1,0 +1,266 @@
+---
+title: "Problem Set 7"
+author: "C. Durso"
+date: '`r format(Sys.time(),"%B %d, %Y")`'
+output:
+  word_document: default
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(knitr)
+library(ggpubr)
+library(boot)
+```
+
+## Introduction
+
+Please complete the following tasks regarding the data in R. Please generate a solution document in R markdown and upload the .Rmd document and a rendered  .doc, .docx, or .pdf document.  Your work should be based  on the data's being in the same folder as the .Rmd file. Please turn in your work on Canvas. Your solution document should have your answers to the questions and should display the requested plots.
+
+These questions were rendered in R markdown through RStudio (<https://www.rstudio.com/wp-content/uploads/2015/02/rmarkdown-cheatsheet.pdf>, <http://rmarkdown.rstudio.com> ).
+
+
+## Question 1
+
+The precipitation data in "precip.txt" are precipitation values for Boulder, CO from
+https://www.esrl.noaa.gov/psd/boulder/Boulder.mm.precip.html.
+Precipitation includes rain, snow, and hail. Snow/ice water amounts are either directly measured or a ratio of 1/10 applied for inches of snow to water equivalent. The symbol "Tr" represents a trace amount of precipitation. Observations marked by a "*" were made at a non-standard site.
+
+In this question, you will read in the data from "precip.txt" and format it. In the formatting steps, the string manipulation commands in the "stringr"" package, part of "tidyverse" may be helpful. The functions "str_to_lower", "str_detect", "str_replace", and "str_replace_all" are particularly relevant. The dplyr function "mutate _all" may be useful.
+
+This problem is intended as practice in light-duty data formatting. Ordinarily, one would examine the data, decide what formatting needed to be done, carry out the formatting, then use the data in analyses. For educational purposes, the problem directs you through several formatting steps. The data for the remaining problems will be provided separately to enable you to work on those before completing question 1.
+
+The code provided below reads in the precipitation data. The values are tab-separated.Most columns are assigned the string class. 
+
+```{r}
+dat<-read.table("precip.txt",stringsAsFactors = FALSE,
+                sep="\t",header = TRUE)
+dat
+```
+
+
+## Question 1 
+
+### 1a. (1 point)
+
+Replace all column names with all lower case versions. For example, "TOTAL" becomes "total". Please use a function to do this. Note that the names of a data frame dat can be accessed and modified using the names(dat) syntax. Verify that the reformatting succeeded by outputting the names of the columns using the command "names(dat)".
+
+```{r}
+names(dat) <- str_to_lower(names(dat))
+names(dat)
+```
+
+
+### 1b. (1 point)
+    
+Replace all occurrences of "Tr" with 0. Verify that this was successful by running the command "sum(str_detect(unlist(dat),"Tr"))".
+
+```{r}
+dat[dat=="Tr"]<-0
+dat
+sum(str_detect(unlist(dat),"Tr"))
+```
+
+## 1c. (2 points)
+    
+Make a boolean vector that indicates which rows have at least one "\*". Then remove all "\*"s in "dat". Note that  "\*" is a special character in string manipulation and must be proceeded by two back slashes to be used literally, "\\\\*". (This last instruction should be read in the rendered document, because back slashes and stars are also special characters in R markdown.) Please print out the years that include non-standard observations. Also, please verify that no "\*"s remain in the data set by running the command below.
+
+```{r}
+detectVec <- c(apply(dat, 1, FUN = function(x) (sum(str_detect(x, "\\*")) > 0)))
+detectVec
+dat <- dat %>%
+    mutate_all(funs(str_replace_all(., "\\*", "")))
+dat
+sum(str_detect(unlist(dat),"\\*"))
+
+```
+
+### 1d. (2 points)
+
+Set all precipitation columns to be of "numeric" class using the "as.numeric" function. Make the "year" column to be of class "integer". Please verify the success of this by running "sapply(dat,class)" and displaying the results. 
+
+Also, identify any resulting "NA" values and confirm that the "NA" categorization is correct. The only unavailable values in the dataset are in 2019. Note that "is.na" is a boolean function returning "TRUE" on "NA" values and "FALSE" otherwise. 
+
+```{r}
+class(dat$year)="integer"
+cols_to_change = c(2:14)
+for(i in cols_to_change){
+   class(dat[, i]) = "numeric"
+}
+
+ sapply(dat,class)
+ sum(is.na(dat))
+ which(is.na(dat), arr.ind=TRUE)
+```
+
+### 1e. (2 points)
+    
+Create another data set dat.trim that has only those years in which all measurements were made at a standard site. Please display the mean total precipitation for the trimmed data set, excluding 2019.
+
+
+```{r}
+dat.trim <- dat.ok
+dat.trim
+yearmean <- (sum(dat.trim$year.total)-15.89)/(length(dat.trim$year.total)-1)
+yearmean
+monthmean <- yearmean/12
+monthmean
+```
+
+### 1f. (2 points)
+
+Are all the years between 1893 and 2019 represented in the data? Please check this using code, not by hand, displaying your results. 
+
+```{r}
+year_range <- c(1893:2019)
+all.equal(dat.trim$year,year_range)
+
+```
+
+## Question 2
+
+### 2a. (5 points)
+
+The purpose of this question is to apply a method to examine the extent to which total precipitation is one year is more like the total in the following year than it is like the total in a randomly selected year.The question uses a provided data set "precip_dat.RData" like (but not exactly like) the one generated in question 1. A preliminary visualization is provided.
+
+Please calculate the mean of the absolute value of the difference between the total precipitation in each odd row with an odd index and the following even-indexed row. 
+
+A matrix of 10,000 permutations of the even indices is provided below. Please also calculate the mean of the absolute value of the difference between the total precipitation in odd rows and each
+simulated even row generated by using the rows given by indices in a row of "mat" in the order in "mat".
+
+Does comparison of the observed difference in successive years to the simulated differences provide strong evidence against the hypothesis that the precipitation total in successive years no more similar than differences between odd years and any permutation of even years?
+
+With p=.84 we do not reject the hull hypothesis that precipitation in successive years is no more similar than any permutation of even years, at any alpha level.   Year to year precipitation seems to be independent, by and large.
+
+```{r}
+load("precip_dat.RData")
+dat.full<-dat.full[dat.full$year!=2019,]
+dat.full
+ggplot(data=dat.full,aes(x=year,y=year.total))+geom_line()+geom_point()
+n<-nrow(dat.full)
+dat.fullodds <- seq(3,123,by=2)
+dat.fullevens <- seq(4,124,by=2)
+oddyears <- c(dat.full$year.total[dat.fullodds])
+evenyears <- c(dat.full$year.total[dat.fullevens])
+reality  <- (abs(oddyears-evenyears))
+reality
+
+
+indices.odd <- seq(1,n,by=2)
+indices.even<-seq(2,n,by=2)
+l<-length(indices.even)
+set.seed(345678)
+mat<-matrix(sample(indices.even,10000*l,replace=TRUE),ncol=l)
+matmeans <- rowMeans(mat)
+matodds <- matmeans[indices.odd]
+matevens <- matmeans[indices.even]
+mean(abs(matodds-matevens))
+
+t.test(reality,mu=5.53)
+```
+### 2b. (5 points)
+
+In the code below, a data set, "dat.ok", similar to the trimmed data from Question 1, is loaded. Please restrict to values between 2000 and 2018. Please apply Student's t-test and the Wilcoxon signed rank test to the difference between the column dat.ok\$jul and the column dat.ok\$aug to test the hypothesis that difference of the precipitation in July and August of the same year has mean equal to 0. Please interpret your results, including your thoughts on which test, if either, is appropriate.
+
+Please consider whether the distribution of the annual differences appears to be approximately Normal, whether the distribution of the annual differences appears to be approximately symmetric, and whether the differences in successive years appear to be independent.
+
+Based on the previous test, the independence proviso seems to be met.  The histogram below seems to be unimodal and symmetric enough to presume normality.  Therefore the student's t-test is probably the more appropriate choice.  That being said, the same conclusion would be drawn from either test, as the two p values are each too high to reject the null hypothesis.  There is not compelling statistical evidence that the mean of the differences is not zero.
+
+```{r}
+#load("precip_dat_trim.RData")
+dat.trim <-dat.trim[103:121,]
+dat.trim
+july <- c(dat.trim$jul)
+aug <- c(dat.trim$aug)
+diffs <- c(dat.trim$jul-dat.trim$aug)
+hist(diffs)
+t.test(diffs,mu=0)
+wilcox.test(july, aug, paired = TRUE, alternative = "two.sided")
+```
+
+## Question 3
+
+The data loaded below are sampled from IPUMS, https://ipums.org/ , an interface for accessing survey and census data. These are drawn from U.S. census microdata in a way that approximates a simple random sample from Colorado households in 2017 that are headed by unmarried men and a simple random sample from Colorado household in 2017 that are headed by unmarried women. 
+
+Steven Ruggles, Katie Genadek, Ronald Goeken, Josiah Grover, and Matthew Sobek. Integrated Public Use Microdata Series: Version 6.0 [dataset]. Minneapolis: University of Minnesota, 2015. http://doi.org/10.18128/D010.V6.0.
+
+The cases with HHTYPE equal to 2 make up the sample of male-headed households. The cases with HHTYPE equal to 3 make up the sample of female-headed households.
+
+### 3a. (10 points)
+
+Are the household incomes for the male-headed households approximately Normally distributed? Are the household incomes for the female-headed households approximately Normally distributed? Please provide visualizations to support your response.
+
+Both of the distributions are skewed right, rather than symmetric, so they do not appear to be normally distributed.
+
+```{r}
+load("dat_mf.RData")
+dat.mf
+#which(dat.mf$HHTYPE == 2)
+male <- c(dat.mf$HHINCOME[1:600])
+female <- c(dat.mf$HHINCOME[601:900])
+hist(male)
+hist(female)
+```
+
+### 3b. (10 points)
+
+Please carry out a Mann-Whitney U-test on the two data sets, the household incomes for the male-headed households and the household incomes for the female-headed households.
+
+What can you conclude from the results? In particular, can this test be interpreted as a test of center in this case?
+
+The conclusion, which such a miniscule p-value, is that there is compelling statistical evidence that the two samples do not come from the same distribution.  It is not a test of center per se, as two different distributions can have the same measures of center, but differ radically in terms of symmetry and/or spread.
+
+```{r}
+ggplot(dat.mf, aes(x=HHINCOME, color=as.factor(HHTYPE))) +
+  geom_density()
+wilcox.test(female,male,alternative='two.sided')
+```
+
+### 3c. (0 points)
+
+The code below carries out a bootstrap test of the difference in means of the household incomes for the male-headed households and the household incomes for the female-headed households. Please study this and be prepared to ask questions about it in live session. 
+
+Basic bootstrap samples are samples with replacement of cases from the data. They are used to estimate confidence intervals on statistics non-parametrically. If the empirical distribution is close to the population distribution, then a bootstrap sample from the empirical distribution simulates a new sample. Computing the range of the statistic of interest for a large number of bootstrap samples gives an indication of the range of values that would be produced if the population actually was resampled.
+
+```{r cache=TRUE}
+
+# wrapper function for the difference in means in a format compatible with the "boot" sampling function
+
+# The return value is a vector with the number of households of each type followed by the difference in means. The counts of the households of each type is to check the stratified sampling.
+
+boot.mean.diff<-function(dat,indices){
+  dat.this<-dat[indices,]
+  gp2<-dat.this$HHINCOME[dat.this$HHTYPE==2]
+  gp3<-dat.this$HHINCOME[dat.this$HHTYPE==3]
+  return(c(length(gp2),length(gp3),mean(gp2)-mean(gp3)))
+}
+
+# Draw 5000 bootstrap samples stratified by household type. 
+
+samp<-boot(dat.mf,boot.mean.diff,5000,strata=dat.mf$HHTYPE)
+
+# The sampling results are in the data member samp$t.
+
+# Check that the number of HHTYPE==2 and HHTYPE==3 households in each bootstrap sample equals the original number.
+
+unique(samp$t[,1])
+unique(samp$t[,2])
+
+# Look at quantiles of the mean difference
+
+quantile(samp$t[,3],c(.025,.975))
+
+# Another interval estimate
+
+boot.ci(samp,type="bca",index=3)
+
+
+# Note that the lower bound is positive.
+
+```
+
+
+

@@ -1,0 +1,149 @@
+---
+title: "Problem Set 1"
+author: "C. Durso"
+output:
+  word_document: default
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+library(knitr)
+```
+
+## Introduction
+
+Questions are 10 points each.
+
+These questions were rendered in R markdown through RStudio (<https://www.rstudio.com/wp-content/uploads/2015/02/rmarkdown-cheatsheet.pdf>, <http://rmarkdown.rstudio.com> ).
+
+Please generate your solutions in R markdown and upload both a knitted doc, docx, or pdf document in addition to the Rmd file.
+
+## Part 1
+
+The goal of questions 1 and 2 is to investigate whether the polio rate among the non-vaccinated children in randomized control trial is significantly different from the polio rate in the placebo group. If participation in the trial is unrelated to contracting polio, these populations shouldn't differ significantly in their experience of the disease.
+
+The code and simulation methods from 01_polio_simulation_binomial_model.Rmd and 01_polio_simulation_shuffle_model.Rmd may be helpful.
+
+### Question 1
+
+Please calculate and display the proportion of paralytic polio cases in the "Placebo" group and separetely in the "NotInoculated" group in the "RandomizedControl" trial.
+
+	
+
+```{r}
+library(HistData)
+dat<-PolioTrials
+RandomizedControlPlacebo <- 115/201229
+RandomizedControlNotInoculated <-	121/338778 
+RandomizedControlPlacebo
+RandomizedControlNotInoculated
+
+```
+
+### Question 2
+
+Under the hygiene hypothesis, the "Placebo" group could be more vulnerable to polio than the "NotInoculated" group. 
+
+Consider the probability model that the number of paralytic polio cases in the "Placebo" group of the "RandomizedControl" experiment is a draw from the binomial distribution with the number of trials equal to the number of children in the "Placebo" group and the probability of "success" is equal to the proportion of paralytic polio cases in the "Placebo" and "NotInoculated" groups of the "RandomizedControl" combined. Without simulation, calculate the probability of a draw that is greater than or equal to the observed value.
+
+
+```{r}
+(115+121)/(201229+338778)
+1-pbinom(235,size=201229+338778,prob=.0004370314)
+```
+
+## Part 2
+
+The data below represent reviews of two facilities on a 1-5 scale with the worst rating being 1 and the best being 5. The variable "value" is the rating. The column "fac1" gives the number of each rating that the first facility received. For example, 7 raters gave the first facility the rating 1, the lowest rating. The column "fac2" gives the number of each rating that the second facility received. For example, 11 raters gave the second facility the rating 5, the highest rating.
+
+```{r}
+reviews<-data.frame(value=5:1,
+                    fac1=c(4,0,1,0,7),
+                    fac2=c(11,2,4,2,3))
+
+```
+
+
+### Question 3
+
+Please use R to calculate the mean rating for each facility in the "reviews" data.  
+
+```{r}
+reviews
+fac1mean <- sum(reviews$value*reviews$fac1)/sum(reviews$fac1)
+fac2mean <- sum(reviews$value*reviews$fac2)/sum(reviews$fac2)
+ 
+fac1mean
+fac2mean
+fac2mean-fac1mean
+```
+
+### Question 4
+
+Please describe a probability model for a simulation-based hypothesis test that addresses whether the two facilities can reasonably be considered to be equivalent in the sense that the rating differences are consistent with chance. Please be sure to address the following questions:
+
+How is the test statistic computed?
+
+What is the probability model that captures the null hypothesis?
+
+How can the probability model be simulated?
+
+What comparison of the observed statistic and the values of the test statistics from the simulations addresses the question?
+
+Some possible variable manipulations are shown below.
+
+The sample distribution will be constructed as such:  The two facilities will be pooled to make theoretical probabilities for each rating score.  There were a total of 34 people sampled between the two facilities. 
+15/34 rated 5's between the two facilities.
+2/34 rated 4's.
+5/34 rated 3's.
+2/34 rated 2's.
+10/34 rated 1's.
+Using these probabilities, samples of 12 & 22 will be pulled, and a mean score from each will be calculated, from which a difference will be pulled.  This process will be repeated 1000 times in this case.  Once these differences are compiled into a distribution, the difference from the previous samples of 1.227273 will be compared against the pool.  The null hypothesis is that there is no meaningful difference between the two samples.  This means the mean of the distribution will be zero.  The overarching question is whether or not the difference of 1.227273 is a meaningful distance away from zero in the distribution we create out of pooled means.  We will use the gold standard of the outer .05 of the distribution, or beyond approximately two standard deviations, in either direction.  This will be the threshold used to determine whether or not a difference in the means of 1.227273 is statistically significant.
+
+```{r}
+# Create a vector of the values assigned by all the reviewers
+# with the correct number of repetitions.
+pop<-rep(reviews$value,times=reviews$fac1+reviews$fac2)
+pop
+# Create a vector of the proportion of times each value was
+# awarded.
+
+rating.prop<-
+  (reviews$fac1+reviews$fac2)/sum(reviews$fac1+reviews$fac2)
+rating.prop
+# Sample the vector (5,4,3,2,1) k times according to the
+# probabilites in "rating.prop"
+
+
+```
+
+### Question 5
+
+Please carry out the test you designed in Question 4 and state your conclusion about the extent to which the data are consistent with the null hypothesis.
+
+```{r}
+meandiffPool=c()
+for (qq in 1:1000) {k<-12
+samp<-sample(5:1,k,replace=TRUE,prob=rating.prop)
+samp
+mean(samp)
+k<-22
+samp2<-sample(5:1,k,replace=TRUE,prob=rating.prop)
+samp2
+mean(samp2)
+meandiff <- mean(samp2)-mean(samp)
+meandiff
+meandiffPool[qq] <- meandiff}
+meandiffPool
+qplot(meandiffPool,width=.2)
+```
+
+
+In conclusion, it looks like the simulation suggests that the difference in the mean ratings of the two facilities is somewhat significant, but not overwhelmingly.  Almost exactly 5% of the simulated mean differences are either >1.2 or <-1.2 in the histogram.  This might lead one to believe that am actual difference in the ratings of the facilities for the entire population is a significant distance from zero.
+
+
+

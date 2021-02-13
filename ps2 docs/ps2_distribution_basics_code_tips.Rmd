@@ -1,0 +1,197 @@
+---
+title: "Problem Set 2"
+author: "C. Durso"
+output:
+  word_document: default
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+These questions were rendered in R markdown through RStudio (<https://www.rstudio.com/wp-content/uploads/2015/02/rmarkdown-cheatsheet.pdf>, <http://rmarkdown.rstudio.com> ).
+
+Please complete the following tasks regarding the data in R. Please generate a solution document in R markdown and upload the .Rmd document and a rendered  .doc, .docx, or .pdf document. Your solution document should have your answers to the questions and should display the requested plots.
+
+
+```{r}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(knitr)
+```
+
+
+### Question 1
+
+Please draw a random sample of 100,000 values from the Poisson distribution with $\lambda=4$ using the random seed 7654321. Present a histogram of the results with a density scale using the techniques in "Discrete_Probability_Distributions_2_3_3.Rmd" or "continuous_probability_distributions_2_4_2.Rmd". You may find a bin width of 1 helpful. Separately, please draw 100 values from the Poisson distribution with $\lambda=4$ using the random seed 7654321 and present a histogram of the results with a density scale.(5 points)
+
+
+
+```{r}
+
+```
+
+### Question 2
+
+Please generate a visualization that compares the proportions each of the possible outcomes in the sample of size 100,000 above to the theoretical probabilities of each of the outcomes for the Poisson distribution with $\lambda=3$. Repeat for the sample of size 100. Discuss the appearance of the histograms in relation to the probability density function of the Poisson distribution with $\lambda=4$. (5 points)
+
+*Tip*: Use geom_histogram with the "..density.." value for the y aes. This code illustrates that using a sample from the hypergeometric distribution with parameters 20, 15, and 5, respectively. The theoretical values can be added with a separate data frame.
+
+If theoretical proportions for just the values occurring in the sample are sufficient, the second plot is also effective.
+
+```{r}
+
+set.seed(7654321)
+samp<-rhyper(1000,20,15,10)
+dat<-data.frame(val=samp)
+g<-ggplot(data=dat, aes(x=val))+
+  geom_histogram(aes(y=..density..),binwidth = 1)
+
+theoretical<-data.frame(x=0:max(samp))
+theoretical$y<-dhyper(theoretical$x,20,15,10)
+g+geom_point(data=theoretical,aes(x=x,y=y))
+
+
+dat$prop.theory<-dhyper(dat$val,20,15,10)
+g+geom_point(aes(y=dat$prop.theory))
+
+```
+
+## Normal Approximations
+
+Many statistical methods involve approximation of a distribution by a Normal distribution. Questions 3 through 7 are intended to build intuition for when this is reasonable. The questions work toward visually assessing the quality of Normal approximations to several distributions. 
+
+The issue of the sd to use in a Normal approximation will be handled by use of the interquartile range, defined below.
+
+### Question 3
+
+Approximately, the $p^{th}$ quantile of a set $S$ of $n$ numerical values is the value $s_p$ such that the proportion of values in $S$ that are less than or equal to $s_p$ equals $p$. This concept may be familiar from the idea of the $95^{th}$ percentile. There are complications arising from the fact that there may not be a value $s_p$ for which the proportion exactly equals $p$. The "quantile" function in R defaults to one approach to addressing this. The default is acceptable for these exercises.
+
+The **interquartile range** of $S$ is the value $s_{0.75}-s_{0.25}$.
+
+#### Question 3.a
+
+By analogy, for a random variable with cumulative density function $F$, let $x_{0.25}$ satisfy $F\left(x_{0.25}\right)=0.25$. Let $x_{0.75}$ satisfy $F\left(x_{0.75}\right)=0.75$. Define $q=x_{0.75}-x_{0.25}$ to be the interquartile range for the random variable. Please calculate the values of $x_{0.75}$ for the Normal distributions with mean 0 and sd in ${1,2,3,...10}$ and plot the points consisting of the value of the sd and the corresponding $x_{0.75}$. This should give an indication of a simple function relating sd and $x_{0.75}$. (5 points)
+
+*Tip*: "qnorm" is the inverse of the cumulative distribution function.
+
+```{r}
+w2<-qnorm(.75,sd=1:10)
+```
+
+### Question 5
+
+For each pair $(n,p)$ with $n\in\{2,5,20\}$ and $p\in\{0.5, 0.2,0.1\}$, sample 100,000 values from the distribution of the mean number of successes in $n$ independent Bernoulli trials with probability of success equal to $p$ and compute the mean and interquartile range of the sample. The data frame and vectors provided may be helpful.(5 points)
+
+*Tip*: Looping through the "dat.samp" data frame of parameters enables organized generation of the requested samples.
+
+```{r}
+ms<-c(10,20)
+ns<-c(15,30)
+ks<-c(5,10,15)
+
+dat.samp<-
+  data.frame(
+    ms=rep(ms,times=length(ns)*length(ks)),
+    ns=rep(ns,times=rep(length(ms),length(ns))),
+    ks=rep(ks, times=rep(length(ms)*length(ns),length(ks)))
+  )
+
+# built-in tool to give all triple of m,n,k
+#dat.sampb<-expand.grid(ms,ns,ks) 
+
+set.seed(7899)
+val.mat<-matrix(rep(NA,1000*nrow(dat.samp)),
+                ncol=nrow(dat.samp))
+for(i in 1:nrow(dat.samp)){
+  val.mat[,i]<-
+     rhyper(1000,dat.samp$ms[i],dat.samp$ns[i],dat.samp$ks[i])
+}
+```
+
+This could be done with "apply" too.
+
+```{r}
+
+sample.make<-function(params,reps){
+  return(rhyper(reps,params[1],params[2],params[3]))
+}
+val.mat.b<-apply(dat.samp,1,sample.make,reps=1000)
+```
+
+The "apply" function is also helpful for collecting the requested statistics in a data frame.
+
+```{r}
+val.stats<-function(x){
+  return(c(mean(x),mean(x^2)))
+}
+# "t" transposes a matrix
+m.means<-as.data.frame(t(apply(val.mat,2,val.stats)))
+names(m.means)<-c("mean","mean.sq")
+m.means$ms<-dat.samp$ms
+m.means$ns<-dat.samp$ms
+m.means$ks<-dat.samp$ks
+kable(m.means)
+
+
+```
+
+
+### Question 6
+
+For each $n$ and $p$ in question 5, plot the density histogram of the sample drawn in question 5. If the interquartile range is non-zero, superimpose the density curve of the Normal distribution with the same mean as the sample and $q$ equal to the interquartile range of the sample. You may use the theoretical relationship derived in Question 3 or the observed relationship in Question 3 to find the Normal distribution with the required value of $q$. (10 points)
+
+*Tip*: You can generate the plots in a loop, calling print each time.
+
+```{r}
+
+for(i in 1:nrow(m.means)){
+  dat.temp<-data.frame(val=val.mat[,i])
+  
+  
+    g <- ggplot(dat.temp, aes(x=val))
+    g<-g+geom_histogram(aes(y = ..density..),binwidth = 1)
+    g<-g+labs(title=str_c("m=",m.means$ms[i],
+                          ", n=",m.means$ns[i],
+                          ", k=",m.means$ks[i]))
+    print(g)
+}
+  
+  
+
+
+```
+
+Alternatively, you can build up a variable that is a list of plots then display the variable:
+
+```{r}
+plot.list<-vector("list",length=nrow(dat.samp))
+for(i in 1:nrow(m.means)){
+  dat.temp<-data.frame(val=val.mat[,i])
+  
+  
+    g <- ggplot(dat.temp, aes(x=val))
+    g<-g+geom_histogram(aes(y = ..density..),binwidth = 1)
+    g<-g+labs(title=str_c("m=",m.means$ms[i],
+                          ", n=",m.means$ns[i],
+                          ", k=",m.means$ks[i]))
+    plot.list[[i]]<-g
+}
+
+plot.list  
+
+```
+
+
+### Question 7
+
+Based on the plots in question 6, how does the value of $p$ affect the extent to which the sample distributions are approximately Normally distributed? How does the number $n$ independent Bernoulli trials affect the extent to which the sample distributions are approximately Normally distributed? (5 points)
+
+
+
+
+
+
+
+
+
+
+
